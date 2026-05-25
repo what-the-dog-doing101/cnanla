@@ -10,6 +10,23 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+console.log("TEST WRITE START");
+
+firebase.initializeApp({
+  apiKey: "AIzaSyD0GwVrcrX855x3cLbxhX3YaI68a95TKG4",
+  authDomain: "chatnowanalyticsjs.firebaseapp.com",
+  projectId: "chatnowanalyticsjs"
+});
+
+const db = firebase.firestore();
+
+db.collection("test").add({
+  hello: "world",
+  time: Date.now()
+})
+.then(() => console.log("WRITE OK"))
+.catch(e => console.error("WRITE FAILED:", e));
+
 let sessionId = localStorage.getItem("cn_session");
 if (!sessionId) {
   sessionId = crypto.randomUUID();
