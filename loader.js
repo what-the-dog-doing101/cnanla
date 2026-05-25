@@ -12,13 +12,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* ---------------- SESSION ---------------- */
+/* ---------------- USER / SESSION ID ---------------- */
 
-let sessionId = localStorage.getItem("cn_session");
-if (!sessionId) {
-  sessionId = crypto.randomUUID();
-  localStorage.setItem("cn_session", sessionId);
+let userId = localStorage.getItem("cn_user");
+if (!userId) {
+  userId = crypto.randomUUID();
+  localStorage.setItem("cn_user", userId);
 }
+
+const sessionId = crypto.randomUUID();
 
 const startTime = Date.now();
 const pageStart = Date.now();
@@ -31,26 +33,20 @@ let lastActive = Date.now();
 /* ---------------- DEVICE ---------------- */
 
 function getDevice() {
-  const nav = navigator;
-  const scr = screen;
-
   return {
-    userAgent: nav.userAgent,
-    platform: nav.platform,
-    language: nav.language,
-    languages: nav.languages || [],
-    cookieEnabled: nav.cookieEnabled,
-    online: nav.onLine,
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    languages: navigator.languages || [],
+    cookieEnabled: navigator.cookieEnabled,
+    online: navigator.onLine,
 
-    vendor: nav.vendor,
-    hardwareConcurrency: nav.hardwareConcurrency || null,
-    deviceMemory: nav.deviceMemory || null,
+    hardwareConcurrency: navigator.hardwareConcurrency || null,
+    deviceMemory: navigator.deviceMemory || null,
 
-    screenWidth: scr.width,
-    screenHeight: scr.height,
-    colorDepth: scr.colorDepth,
+    screenWidth: screen.width,
+    screenHeight: screen.height,
     pixelRatio: window.devicePixelRatio || 1,
-    orientation: screen.orientation ? screen.orientation.type : null,
 
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
@@ -58,20 +54,11 @@ function getDevice() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     timezoneOffset: new Date().getTimezoneOffset(),
 
-    connectionType: navigator.connection?.effectiveType || null,
-    downlink: navigator.connection?.downlink || null,
-    rtt: navigator.connection?.rtt || null,
+    connection: navigator.connection?.effectiveType || null,
 
     referrer: document.referrer || null,
-    currentUrl: location.href,
-    pathname: location.pathname,
-    hash: location.hash,
-
-    touchSupport: "ontouchstart" in window,
-    webgl: !!window.WebGLRenderingContext,
-    webgl2: !!window.WebGL2RenderingContext,
-    localStorage: !!window.localStorage,
-    sessionStorage: !!window.sessionStorage
+    url: location.href,
+    path: location.pathname
   };
 }
 
@@ -87,45 +74,32 @@ async function getCountry() {
   }
 }
 
-/* ---------------- ACTIVE TIME ---------------- */
+/* ---------------- ACTION WRITER ---------------- */
 
-function markActive() {
-  activeTime += Date.now() - lastActive;
-  lastActive = Date.now();
+function addAction(type, data = {}) {
+  return db
+    .collection("sessions")
+    .doc(userId)
+    .collection("actions")
+    .add({
+      sessionId,
+      userId,
+      type,
+      timestamp: Date.now(),
+      page: location.href,
+      ...data
+    })
+    .catch(e => console.error("ACTION WRITE ERROR:", e));
 }
 
-/* ---------------- INTERACTION ---------------- */
-
-function markInteraction() {
-  if (!firstInteraction) firstInteraction = Date.now() - pageStart;
-}
-
-/* ---------------- SEND HELPER ---------------- */
-
-function send(collection, data) {
-  return db.collection(collection).add({
-    sessionId,
-    page: location.href,
-    timestamp: Date.now(),
-    ...data
-  }).catch(e => console.error("WRITE ERROR:", e));
-}
-
-/* ---------------- PAGEVIEW ---------------- */
-
-send("pageviews", {
-  type: "page_view",
-  referrer: document.referrer || null,
-  entryPage: location.href
-});
-
-/* ---------------- SESSION START ---------------- */
+/* ---------------- SESSION CREATE ---------------- */
 
 (async () => {
   const country = await getCountry();
   const device = getDevice();
 
-  db.collection("sessions").doc(sessionId).set({
+  db.collection("sessions").doc(userId).set({
+    userId,
     sessionId,
     startTime,
     country,
@@ -133,20 +107,33 @@ send("pageviews", {
     referrer: document.referrer || null,
     entryPage: location.href
   }).catch(e => console.error("SESSION WRITE ERROR:", e));
+
+  addAction("session_start");
 })();
 
-/* ---------------- ACTIVITY TRACKING ---------------- */
+/* ---------------- ACTIVITY ---------------- */
+
+function markActive() {
+  activeTime += Date.now() - lastActive;
+  lastActive = Date.now();
+}
+
+function markInteraction() {
+  if (!firstInteraction) firstInteraction = Date.now() - pageStart;
+}
 
 ["mousemove", "keydown", "click"].forEach(e =>
   window.addEventListener(e, markActive)
 );
 
-/* ---------------- SCROLL DEPTH ---------------- */
+/* ---------------- SCROLL ---------------- */
 
 window.addEventListener("scroll", () => {
   const docHeight = document.body.scrollHeight - window.innerHeight;
   const scrolled = Math.round((window.scrollY / docHeight) * 100);
   if (scrolled > maxScroll) maxScroll = scrolled;
+
+  addAction("scroll", { depth: scrolled });
 });
 
 /* ---------------- CLICK TRACKING ---------------- */
@@ -156,16 +143,14 @@ document.addEventListener("click", (e) => {
 
   const el = e.target.closest("a, button");
 
-  send("events", {
-    type: "click_position",
+  addAction("click_position", {
     x: e.clientX,
     y: e.clientY
   });
 
   if (!el) return;
 
-  send("events", {
-    type: "click",
+  addAction("click", {
     tag: el.tagName.toLowerCase(),
     text: el.innerText?.slice(0, 80) || null,
     url: el.href || null,
@@ -179,21 +164,19 @@ document.addEventListener("click", (e) => {
 window.addEventListener("load", () => {
   const loadTime = Date.now() - startTime;
 
-  send("performance", {
-    type: "load_time",
-    value: loadTime
+  addAction("performance", {
+    loadTime
   });
 });
 
 /* ---------------- SESSION END ---------------- */
 
 window.addEventListener("beforeunload", () => {
-  send("sessions", {
-    type: "session_end",
+  addAction("session_end", {
     duration: Date.now() - startTime,
     timeOnPage: Date.now() - pageStart,
     firstInteraction,
-    scrollDepth: maxScroll,
+    maxScroll,
     activeTime
   });
 });
