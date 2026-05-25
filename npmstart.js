@@ -1,7 +1,8 @@
+console.log("ran npmstart");
+
 (function(){ 
   // 1. Check if Firebase is already loaded
   if (typeof firebase !== 'undefined') {
-    console.log("ran npmstart");
     return;
   }
 
