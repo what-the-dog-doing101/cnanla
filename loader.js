@@ -20,18 +20,27 @@ console.log("LOADER STARTED");
   const db = firebase.firestore();
 
   console.log("FIREBASE INIT OK");
+console.log("FIREBASE CHECK:", window.firebase);
 
-  // TEST WRITE (THIS PROVES EVERYTHING WORKS)
-  db.collection("test").add({
-    ok: true,
-    time: Date.now(),
-    page: location.href
-  })
-  .then(() => {
-    console.log("WRITE SUCCESS");
-  })
-  .catch((e) => {
-    console.error("WRITE FAILED", e);
-  });
+firebase.initializeApp({
+  apiKey: "AIzaSyD0GwVrcrX855x3cLbxhX3YaI68a95TKG4",
+  authDomain: "chatnowanalyticsjs.firebaseapp.com",
+  projectId: "chatnowanalyticsjs"
+});
 
-})();
+console.log("APP INIT OK");
+
+const db = firebase.firestore();
+
+console.log("FIRESTORE OBJECT:", db);
+
+db.collection("test").add({
+  debug: true,
+  time: Date.now()
+})
+.then((res) => {
+  console.log("WRITE SUCCESS", res.id);
+})
+.catch((err) => {
+  console.error("WRITE FAILED FULL ERROR:", err);
+});
