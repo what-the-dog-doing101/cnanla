@@ -25,37 +25,53 @@ const pageStart = Date.now();
 
 let firstInteraction = null;
 let maxScroll = 0;
-let lastActive = Date.now();
 let activeTime = 0;
+let lastActive = Date.now();
 
-/* ---------------- HELPERS ---------------- */
-
-function markActive() {
-  activeTime += Date.now() - lastActive;
-  lastActive = Date.now();
-}
-
-function markInteraction() {
-  if (!firstInteraction) firstInteraction = Date.now() - pageStart;
-}
-
-function send(collection, data) {
-  return db.collection(collection).add({
-    sessionId,
-    page: location.href,
-    timestamp: Date.now(),
-    ...data
-  }).catch(e => console.error("WRITE ERROR:", e));
-}
-
-/* ---------------- DEVICE INFO ---------------- */
+/* ---------------- DEVICE ---------------- */
 
 function getDevice() {
+  const nav = navigator;
+  const scr = screen;
+
   return {
-    browser: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
-    screen: screen.width + "x" + screen.height
+    userAgent: nav.userAgent,
+    platform: nav.platform,
+    language: nav.language,
+    languages: nav.languages || [],
+    cookieEnabled: nav.cookieEnabled,
+    online: nav.onLine,
+
+    vendor: nav.vendor,
+    hardwareConcurrency: nav.hardwareConcurrency || null,
+    deviceMemory: nav.deviceMemory || null,
+
+    screenWidth: scr.width,
+    screenHeight: scr.height,
+    colorDepth: scr.colorDepth,
+    pixelRatio: window.devicePixelRatio || 1,
+    orientation: screen.orientation ? screen.orientation.type : null,
+
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffset: new Date().getTimezoneOffset(),
+
+    connectionType: navigator.connection?.effectiveType || null,
+    downlink: navigator.connection?.downlink || null,
+    rtt: navigator.connection?.rtt || null,
+
+    referrer: document.referrer || null,
+    currentUrl: location.href,
+    pathname: location.pathname,
+    hash: location.hash,
+
+    touchSupport: "ontouchstart" in window,
+    webgl: !!window.WebGLRenderingContext,
+    webgl2: !!window.WebGL2RenderingContext,
+    localStorage: !!window.localStorage,
+    sessionStorage: !!window.sessionStorage
   };
 }
 
@@ -69,6 +85,30 @@ async function getCountry() {
   } catch {
     return "unknown";
   }
+}
+
+/* ---------------- ACTIVE TIME ---------------- */
+
+function markActive() {
+  activeTime += Date.now() - lastActive;
+  lastActive = Date.now();
+}
+
+/* ---------------- INTERACTION ---------------- */
+
+function markInteraction() {
+  if (!firstInteraction) firstInteraction = Date.now() - pageStart;
+}
+
+/* ---------------- SEND HELPER ---------------- */
+
+function send(collection, data) {
+  return db.collection(collection).add({
+    sessionId,
+    page: location.href,
+    timestamp: Date.now(),
+    ...data
+  }).catch(e => console.error("WRITE ERROR:", e));
 }
 
 /* ---------------- PAGEVIEW ---------------- */
