@@ -1,4 +1,4 @@
-console.log("ran npmstart")
+console.log("ran npmstart");
 
 (function(){
 
