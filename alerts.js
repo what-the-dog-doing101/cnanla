@@ -139,16 +139,3 @@ function closePopup() {
     closeBtn.addEventListener('click', closePopup);
 })();
 
-// --- FIREBASE SETUP ---
-const firebaseConfig = {
-  apiKey: "AIzaSyC0GmdBt7buTxi39uniw9x40ywccx59x8Y",
-  authDomain: "chatnow-6116c.firebaseapp.com",
-  databaseURL: "https://chatnow-6116c-default-rtdb.firebaseio.com",
-  projectId: "chatnow-6116c",
-  storageBucket: "chatnow-6116c.appspot.com",
-  messagingSenderId: "516446318384",
-  appId: "1:516446318384:web:c923ba0e6d6f27a21a62f5"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
