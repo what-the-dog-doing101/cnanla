@@ -1,4 +1,4 @@
-//alert for auto loging hashing upd 
+//alert for auto loging hashing upd.
 
 (function() {
     // Prevent rendering if the user already dismissed this update notification
